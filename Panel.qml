@@ -16,7 +16,7 @@ import "Model.js" as Model
 // anchorItem/hostWidget into it.
 Panel {
   id: root
-  moduleName: "tim.hey-calendar"
+  moduleName: "ninepointlabs.hey-calendar"
 
   property var anchorItem: null
   property var hostWidget: null

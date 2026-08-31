@@ -11,7 +11,7 @@ import "Model.js" as Model
 // widget can stand in for the panel as the bar's popout identity.
 BarWidget {
   id: root
-  moduleName: "tim.hey-calendar"
+  moduleName: "ninepointlabs.hey-calendar"
 
   property date today: clock.date
   readonly property string todayKey: Model.keyForDate(today)
@@ -106,7 +106,7 @@ BarWidget {
   }
 
   IpcHandler {
-    target: "tim.hey-calendar"
+    target: "ninepointlabs.hey-calendar"
 
     function refresh(): void { root.broadcast("refresh") }
     function open(): void { root.open() }

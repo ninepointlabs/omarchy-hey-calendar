@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "tim.hey-calendar",
+  "id": "ninepointlabs.hey-calendar",
   "name": "HEY Calendar",
   "version": "0.1.0",
-  "author": "Tim",
+  "author": "Ninepoint Labs",
   "license": "MIT",
   "description": "Native Omarchy calendar — Today, Week, Month and Year views, day detail with events and journal — backed by the HEY CLI.",
   "kinds": [
