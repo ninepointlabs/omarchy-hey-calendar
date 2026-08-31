@@ -710,7 +710,32 @@ function nextEventLabel(events, nowMs) {
   return time === "" ? best.title : time + " · " + best.title
 }
 
-// Validates a 24h "HH:MM" field before it reaches a command line.
+// Reads a time-of-day field leniently — "9", "9:30", "9:30am", "9:30 PM",
+// "09:30", "21:30" all resolve — and returns it zero-padded 24h ("HH:MM")
+// for the command line, or "" if genuinely unreadable. The add/edit forms
+// previously required exact zero-padded 24h input with no feedback when it
+// didn't match, so a plainly-typed "9:00" silently left the button
+// disabled with no visible reason — this is deliberately permissive so
+// typing what a person would actually type just works.
+function normalizeTimeOfDay(value) {
+  var text = String(value || "").trim().toLowerCase()
+  var match = text.match(/^(\d{1,2})(?::([0-5]\d))?\s*(am|pm)?$/)
+  if (!match) return ""
+  var hour = parseInt(match[1], 10)
+  var minute = match[2] !== undefined ? parseInt(match[2], 10) : 0
+  var meridiem = match[3]
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return ""
+    if (meridiem === "am") hour = hour === 12 ? 0 : hour
+    else hour = hour === 12 ? 12 : hour + 12
+  } else if (hour > 23) {
+    return ""
+  }
+  return pad2(hour) + ":" + pad2(minute)
+}
+
+// Kept for callers that already have a normalized "HH:MM" string and just
+// want to confirm it — normalizeTimeOfDay is what parses user input.
 function validTimeOfDay(value) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "").trim())
 }
@@ -742,6 +767,6 @@ if (typeof module !== "undefined") {
     htmlToPlainText: htmlToPlainText, dateOnlyKeyFromIso: dateOnlyKeyFromIso,
     eventsByDay: eventsByDay, eventsOnDay: eventsOnDay,
     eventTimeLabel: eventTimeLabel, eventTimeRangeLabel: eventTimeRangeLabel,
-    nextEventLabel: nextEventLabel, validTimeOfDay: validTimeOfDay
+    nextEventLabel: nextEventLabel, validTimeOfDay: validTimeOfDay, normalizeTimeOfDay: normalizeTimeOfDay
   }
 }

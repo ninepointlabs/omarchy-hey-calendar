@@ -45,8 +45,14 @@ Item {
   property string addLocation: ""
   property string addCalendar: ""
 
+  // Reads whatever was typed leniently ("9", "9:30am", "21:30", ...) rather
+  // than requiring exact zero-padded 24h input — the strict form silently
+  // left ADD disabled with no explanation for anything typed the way a
+  // person actually types a time.
   readonly property bool addValid: addTitle.trim() !== ""
-    && (addAllDay || (Model.validTimeOfDay(addStart) && Model.validTimeOfDay(addEnd)))
+    && (addAllDay || (Model.normalizeTimeOfDay(addStart) !== "" && Model.normalizeTimeOfDay(addEnd) !== ""))
+  readonly property bool addTimeUnreadable: !addAllDay
+    && ((addStart.trim() !== "" && Model.normalizeTimeOfDay(addStart) === "") || (addEnd.trim() !== "" && Model.normalizeTimeOfDay(addEnd) === ""))
 
   function resetAddForm() {
     addTitle = ""
@@ -61,7 +67,8 @@ Item {
     if (!addValid || !service) return
     var ok = service.addEvent({
       title: addTitle, date: dateKey, allDay: addAllDay,
-      startTime: addAllDay ? "" : addStart, endTime: addAllDay ? "" : addEnd,
+      startTime: addAllDay ? "" : Model.normalizeTimeOfDay(addStart),
+      endTime: addAllDay ? "" : Model.normalizeTimeOfDay(addEnd),
       location: addLocation, calendarId: addCalendar
     })
     if (ok) resetAddForm()
@@ -74,7 +81,10 @@ Item {
   property string editEnd: ""
   property string editLocation: ""
 
-  readonly property bool editValid: editTitle.trim() !== "" && Model.validTimeOfDay(editStart) && Model.validTimeOfDay(editEnd)
+  readonly property bool editValid: editTitle.trim() !== ""
+    && Model.normalizeTimeOfDay(editStart) !== "" && Model.normalizeTimeOfDay(editEnd) !== ""
+  readonly property bool editTimeUnreadable: (editStart.trim() !== "" && Model.normalizeTimeOfDay(editStart) === "")
+    || (editEnd.trim() !== "" && Model.normalizeTimeOfDay(editEnd) === "")
 
   function startEdit(event) {
     editingId = event.id
@@ -93,7 +103,8 @@ Item {
   function submitEdit() {
     if (!editValid || !service) return
     var ok = service.editEvent(editingId, {
-      title: editTitle, startTime: editStart, endTime: editEnd, location: editLocation
+      title: editTitle, startTime: Model.normalizeTimeOfDay(editStart), endTime: Model.normalizeTimeOfDay(editEnd),
+      location: editLocation
     })
     if (ok) editingId = ""
   }
@@ -316,6 +327,16 @@ Item {
             }
           }
 
+          Text {
+            visible: root.editTimeUnreadable
+            width: parent.width
+            text: "Times like 9:00, 9:30am, or 21:30 all work — that one isn't readable."
+            color: Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.Wrap
+          }
+
           TextField {
             width: parent.width
             placeholderText: "Location (optional)"
@@ -424,6 +445,16 @@ Item {
             onTextChanged: root.addEnd = text
             Binding on text { value: root.addEnd }
           }
+        }
+
+        Text {
+          visible: root.addTimeUnreadable
+          width: parent.width
+          text: "Times like 9:00, 9:30am, or 21:30 all work — that one isn't readable."
+          color: Color.urgent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.Wrap
         }
 
         TextField {
