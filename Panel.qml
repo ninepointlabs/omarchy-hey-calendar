@@ -78,7 +78,13 @@ Panel {
   function updateWindow() {
     if (!service) return
     if (currentView === "today") {
-      service.requestWindow(todayKey, todayKey, false)
+      // Widened by a day rather than requesting todayKey..todayKey: `hey
+      // event list` with identical --starts-on/--ends-on values reliably
+      // returns nothing for any date except literally today, so a single
+      // fragile same-day match isn't relied on here — dayEvents() below
+      // still filters back down to just today's events for display.
+      var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+      service.requestWindow(todayKey, Model.keyForDate(tomorrow), false)
     } else if (currentView === "week") {
       var days = Model.weekDays(weekAnchor, weekStart, todayKey)
       service.requestWindow(days[0].key, days[6].key, false)

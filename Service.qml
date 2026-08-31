@@ -128,7 +128,31 @@ Item {
     if (!authenticated) return
 
     loadCalendars()
+    if (systemTimeZone === "") probeTimeZone()
     if (windowStart !== "" && windowEnd !== "") requestWindow(windowStart, windowEnd, true)
+  }
+
+  // -------------------------------------------------------- Time zone --
+
+  // `hey event add/edit` does not reliably resolve "this machine's zone" on
+  // its own in this environment — see Model.eventAddCommand. Probed once via
+  // /etc/localtime and reused for every event write after that.
+  property string systemTimeZone: ""
+  property string _timeZoneOut: ""
+
+  function probeTimeZone() {
+    _timeZoneOut = ""
+    timeZoneProcess.running = true
+  }
+
+  Process {
+    id: timeZoneProcess
+    running: false
+    command: Model.systemTimeZoneCommand
+    stdout: StdioCollector { id: timeZoneStdout; waitForEnd: true; onStreamFinished: root._timeZoneOut = text }
+    onExited: function(exitCode) {
+      root.systemTimeZone = Model.parseSystemTimeZone(timeZoneStdout.text || root._timeZoneOut || "")
+    }
   }
 
   // ---------------------------------------------------------- Calendars --
@@ -307,12 +331,19 @@ Item {
     return true
   }
 
+  function withTimeZone(fields) {
+    var merged = {}
+    for (var key in fields) merged[key] = fields[key]
+    if (root.systemTimeZone !== "") merged.timeZone = root.systemTimeZone
+    return merged
+  }
+
   function addEvent(fields) {
-    return _runMutation("add", Model.eventAddCommand(fields))
+    return _runMutation("add", Model.eventAddCommand(withTimeZone(fields)))
   }
 
   function editEvent(id, fields) {
-    return _runMutation("edit", Model.eventEditCommand(id, fields))
+    return _runMutation("edit", Model.eventEditCommand(id, withTimeZone(fields)))
   }
 
   function deleteEvent(id) {

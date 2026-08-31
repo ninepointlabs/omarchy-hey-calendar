@@ -409,6 +409,14 @@ function journalWriteCommand(dateKeyValue, content) {
 
 // Title goes through --title rather than as a bare positional, for the same
 // leading-dash reason as journalWriteCommand above.
+//
+// `--time-zone` is always passed when a zone is known (Service.qml probes
+// the system's own zone once at startup — see systemTimeZoneCommand below).
+// Confirmed empirically: `hey event add --start-time 09:00` with no
+// `--time-zone` stores the clock digits as literal UTC rather than resolving
+// "this machine's zone" the way its own --help claims — a 9am event lands
+// at 4am (or worse, on the wrong calendar day for a pre-dawn time) on any
+// zone behind UTC. Passing the zone explicitly is the reliable fix.
 function eventAddCommand(fields) {
   var args = ["hey", "event", "add", "--title", String(fields.title || "").trim()]
   if (fields.date) args.push("--starts-on", fields.date)
@@ -417,6 +425,7 @@ function eventAddCommand(fields) {
   } else {
     if (fields.startTime) args.push("--start-time", fields.startTime)
     if (fields.endTime) args.push("--end-time", fields.endTime)
+    if (fields.timeZone) args.push("--time-zone", fields.timeZone)
   }
   if (fields.calendarId) args.push("--calendar", String(fields.calendarId))
   if (fields.location) args.push("--location", fields.location)
@@ -428,7 +437,8 @@ function eventAddCommand(fields) {
 // the flags per the CLI's own usage line (`hey event edit <id> [date]
 // [flags]`) — only the flags named here change; HEY preserves everything
 // else on the event, which is why an edit never resends fields the UI
-// doesn't expose (notes, reminders, calendar, ...).
+// doesn't expose (notes, reminders, calendar, ...). Same --time-zone
+// reasoning as eventAddCommand above.
 function eventEditCommand(id, fields) {
   var args = ["hey", "event", "edit", String(id)]
   if (fields.date !== undefined) args.push(String(fields.date))
@@ -436,9 +446,22 @@ function eventEditCommand(id, fields) {
   if (fields.allDay === true) args.push("--all-day")
   if (fields.startTime !== undefined) args.push("--start-time", String(fields.startTime))
   if (fields.endTime !== undefined) args.push("--end-time", String(fields.endTime))
+  if (fields.startTime !== undefined && fields.timeZone) args.push("--time-zone", fields.timeZone)
   if (fields.location !== undefined) args.push("--location", String(fields.location))
   args.push("--json")
   return boundedCaptureCommand(args, cliResponseByteLimit, cliErrorByteLimit)
+}
+
+// Probes the system's real IANA zone via /etc/localtime rather than trusting
+// `hey`'s own "defaults to this machine's zone" resolution, which this
+// build does not honor reliably (see eventAddCommand above).
+var systemTimeZoneCommand = boundedCaptureCommand(
+  ["bash", "-c", "readlink -f /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p'"],
+  1024, 1024)
+
+function parseSystemTimeZone(text) {
+  var value = String(text || "").trim()
+  return /^[A-Za-z0-9_+-]+(\/[A-Za-z0-9_+-]+){0,2}$/.test(value) ? value : ""
 }
 
 function eventDeleteCommand(id) {
@@ -713,6 +736,7 @@ if (typeof module !== "undefined") {
     journalWriteCommand: journalWriteCommand, eventAddCommand: eventAddCommand,
     eventEditCommand: eventEditCommand, eventDeleteCommand: eventDeleteCommand,
     journalEditLaunchCommand: journalEditLaunchCommand,
+    systemTimeZoneCommand: systemTimeZoneCommand, parseSystemTimeZone: parseSystemTimeZone,
     parseCalendars: parseCalendars, calendarColorIndex: calendarColorIndex,
     parseEvents: parseEvents, parseJournalDays: parseJournalDays, parseJournalEntry: parseJournalEntry,
     htmlToPlainText: htmlToPlainText, dateOnlyKeyFromIso: dateOnlyKeyFromIso,
