@@ -347,27 +347,42 @@ function journalReadCommand(dateKeyValue) {
 }
 
 // Empty content removes the entry, per the CLI's own contract — callers must
-// route a delete through a confirmation, never send "" by accident.
+// route a delete through a confirmation, never send "" by accident. Content
+// goes through --content rather than as a bare positional: free-form text
+// that happens to start with "-" would otherwise be misread as an unknown
+// flag by the CLI's argument parser.
 function journalWriteCommand(dateKeyValue, content) {
-  return boundedCaptureCommand(["hey", "journal", "write", dateKeyValue, String(content || "")],
+  return boundedCaptureCommand(["hey", "journal", "write", dateKeyValue, "--content", String(content || "")],
     cliResponseByteLimit, cliErrorByteLimit)
 }
 
+// Title goes through --title rather than as a bare positional, for the same
+// leading-dash reason as journalWriteCommand above.
 function eventAddCommand(fields) {
-  var args = ["hey", "event", "add", String(fields.title || "").trim()]
+  var args = ["hey", "event", "add", "--title", String(fields.title || "").trim()]
   if (fields.date) args.push("--starts-on", fields.date)
-  if (!fields.allDay && fields.startTime) args.push("--start-time", fields.startTime)
-  if (!fields.allDay && fields.endTime) args.push("--end-time", fields.endTime)
+  if (fields.allDay) {
+    args.push("--all-day")
+  } else {
+    if (fields.startTime) args.push("--start-time", fields.startTime)
+    if (fields.endTime) args.push("--end-time", fields.endTime)
+  }
   if (fields.calendarId) args.push("--calendar", String(fields.calendarId))
   if (fields.location) args.push("--location", fields.location)
   args.push("--json")
   return boundedCaptureCommand(args, cliResponseByteLimit, cliErrorByteLimit)
 }
 
+// `id` and the optional narrowing `[date]` are positional and must precede
+// the flags per the CLI's own usage line (`hey event edit <id> [date]
+// [flags]`) — only the flags named here change; HEY preserves everything
+// else on the event, which is why an edit never resends fields the UI
+// doesn't expose (notes, reminders, calendar, ...).
 function eventEditCommand(id, fields) {
   var args = ["hey", "event", "edit", String(id)]
-  if (fields.title !== undefined) args.push("--title", String(fields.title))
   if (fields.date !== undefined) args.push(String(fields.date))
+  if (fields.title !== undefined) args.push("--title", String(fields.title))
+  if (fields.allDay === true) args.push("--all-day")
   if (fields.startTime !== undefined) args.push("--start-time", String(fields.startTime))
   if (fields.endTime !== undefined) args.push("--end-time", String(fields.endTime))
   if (fields.location !== undefined) args.push("--location", String(fields.location))
