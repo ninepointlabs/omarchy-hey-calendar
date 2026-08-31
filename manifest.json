@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "tim.hey-calendar",
+  "name": "HEY Calendar",
+  "version": "0.1.0",
+  "author": "Tim",
+  "license": "MIT",
+  "description": "Native Omarchy calendar — Today, Week, Month and Year views, day detail with events and journal — backed by the HEY CLI.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "HEY Calendar",
+    "description": "Today's date or next event from HEY, with a Today/Week/Month/Year calendar panel and day detail for events and journal entries.",
+    "category": "Time",
+    "aliases": [
+      "calendar",
+      "hey calendar",
+      "agenda",
+      "journal"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "view": "month",
+      "showNextEvent": true,
+      "weekStartDay": null
+    },
+    "schema": [
+      {
+        "key": "showNextEvent",
+        "type": "boolean",
+        "label": "Show next event in bar",
+        "defaultValue": true
+      },
+      {
+        "key": "view",
+        "type": "enum",
+        "label": "Default view",
+        "options": [
+          "today",
+          "week",
+          "month",
+          "year"
+        ],
+        "defaultValue": "month"
+      }
+    ]
+  }
+}
