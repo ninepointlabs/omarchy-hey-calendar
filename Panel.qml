@@ -450,7 +450,7 @@ Panel {
               }
 
               Button {
-                anchors.horizontalCenter: parent.horizontalCenter
+                x: Math.round((parent.width - width) / 2)
                 text: root.setupPlanValue.buttonLabel
                 bordered: true
                 foreground: root.foreground
@@ -464,7 +464,7 @@ Panel {
               }
 
               Text {
-                anchors.horizontalCenter: parent.horizontalCenter
+                x: Math.round((parent.width - width) / 2)
                 text: "or run: " + root.setupPlanValue.command
                 color: root.dim
                 font.family: root.fontFamily
@@ -587,32 +587,163 @@ Panel {
               }
             }
 
-            // ---- Month: one grid
-            MonthGrid {
-              id: monthViewGrid
-              visible: !root.needsSetup && root.currentView === "month"
-              anchors.horizontalCenter: parent.horizontalCenter
-              year: root.viewYear
-              month: root.viewMonth
-              weekStart: root.weekStart
-              todayKey: root.todayKey
-              eventDayKeys: root.eventDayKeys
-              journalDayKeys: root.journalDayKeys
-              foreground: root.foreground
-              accent: root.accent
-              fontFamily: root.fontFamily
+            // ---- Month: one grid, and Year's twelve compact ones, inlined
+            // directly rather than as a separate reusable component. A
+            // locally-defined .qml type instantiated with more than ~2
+            // properties assigned onto it from outside silently loses every
+            // assignment past the second on this Quickshell build. Every
+            // delegate below is a plain, unnamed Column declared right here
+            // instead — reading `root.*` directly, the same way the Week
+            // view's Repeater rows already do without issue — so nothing
+            // ever crosses a separate-file component boundary.
+            Repeater {
+              model: !root.needsSetup && root.currentView === "month" ? [root.viewMonth] : []
+
+              Column {
+                id: monthBlock
+                required property int modelData
+                readonly property int monthValue: modelData
+                readonly property bool compactMode: false
+                x: Math.round((parent.width - width) / 2)
+                spacing: Style.space(3)
+
+                Item {
+                  width: parent.width
+                  height: monthBlockLabelMouse.height
+
+                  Text {
+                    id: monthBlockLabel
+                    textFormat: Text.PlainText
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Qt.formatDate(new Date(root.viewYear, monthBlock.monthValue, 1), "MMMM yyyy").toUpperCase()
+                    color: Qt.darker(root.foreground, 1.3)
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.body
+                    font.letterSpacing: 1
+                    font.bold: true
+                  }
+
+                  MouseArea {
+                    id: monthBlockLabelMouse
+                    anchors.centerIn: monthBlockLabel
+                    width: monthBlockLabel.implicitWidth + Style.space(12)
+                    height: monthBlockLabel.implicitHeight + Style.space(8)
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.goToToday()
+                  }
+                }
+
+                Row {
+                  spacing: Style.space(2)
+                  Item { width: Style.space(28); height: Style.space(14) }
+                  Item { width: Style.space(10); height: Style.space(14) }
+
+                  Repeater {
+                    model: Model.weekdayOrder(root.weekStart)
+
+                    Text {
+                      textFormat: Text.PlainText
+                      required property var modelData
+                      width: Style.space(52)
+                      height: Style.space(14)
+                      horizontalAlignment: Text.AlignHCenter
+                      verticalAlignment: Text.AlignVCenter
+                      text: Qt.locale("en_US").dayName(modelData, Locale.ShortFormat).substring(0, 2).toUpperCase()
+                      color: Qt.darker(root.foreground, 1.5)
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                    }
+                  }
+                }
+
+                Repeater {
+                  model: Model.monthGrid(root.viewYear, monthBlock.monthValue, root.weekStart, root.todayKey)
+
+                  Row {
+                    required property var modelData
+                    spacing: Style.space(2)
+
+                    Text {
+                      textFormat: Text.PlainText
+                      width: Style.space(28)
+                      height: Style.space(44)
+                      horizontalAlignment: Text.AlignHCenter
+                      verticalAlignment: Text.AlignVCenter
+                      text: modelData.week
+                      color: Qt.darker(root.foreground, 1.9)
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                    }
+
+                    Item { width: Style.space(10); height: Style.space(44) }
+
+                    Repeater {
+                      model: modelData.days
+
+                      Rectangle {
+                        id: monthBlockCell
+                        required property var modelData
+                        readonly property bool hasEvent: root.eventDayKeys[modelData.key] === true
+                        readonly property bool hasJournal: root.journalDayKeys[modelData.key] === true
+
+                        width: Style.space(52)
+                        height: Style.space(44)
+                        radius: Style.cornerRadius
+                        color: monthBlockDayMouse.containsMouse ? Style.hoverFillFor(root.foreground, root.accent) : "transparent"
+                        border.width: modelData.today ? Style.spacing.hairline : 0
+                        border.color: Style.normalBorderFor(root.foreground, root.accent)
+
+                        Text {
+                          textFormat: Text.PlainText
+                          anchors.centerIn: parent
+                          anchors.verticalCenterOffset: monthBlockCell.hasEvent || monthBlockCell.hasJournal ? -Style.space(3) : 0
+                          text: monthBlockCell.modelData.day
+                          color: monthBlockCell.modelData.inMonth
+                            ? (monthBlockCell.modelData.weekend ? Qt.darker(root.foreground, 1.45) : root.foreground)
+                            : Qt.darker(root.foreground, 2.2)
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.body
+                          font.bold: monthBlockCell.modelData.today
+                        }
+
+                        Row {
+                          visible: monthBlockCell.hasEvent || monthBlockCell.hasJournal
+                          anchors.horizontalCenter: parent.horizontalCenter
+                          anchors.bottom: parent.bottom
+                          anchors.bottomMargin: Style.space(5)
+                          spacing: Style.space(3)
+
+                          Rectangle {
+                            visible: monthBlockCell.hasEvent
+                            width: Style.space(4); height: Style.space(4); radius: width / 2
+                            color: root.accent
+                          }
+                          Rectangle {
+                            visible: monthBlockCell.hasJournal
+                            width: Style.space(4); height: Style.space(4); radius: width / 2
+                            color: Qt.darker(root.foreground, 1.4)
+                          }
+                        }
+
+                        MouseArea {
+                          id: monthBlockDayMouse
+                          anchors.fill: parent
+                          hoverEnabled: true
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: root.openDay(monthBlockCell.modelData.key)
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
 
-            Connections {
-              target: monthViewGrid
-              function onDayClicked(dateKeyValue) { root.openDay(dateKeyValue) }
-              function onMonthLabelClicked() { root.goToToday() }
-            }
-
-            // ---- Year: twelve compact grids
             Grid {
               visible: !root.needsSetup && root.currentView === "year"
-              anchors.horizontalCenter: parent.horizontalCenter
+              x: Math.round((parent.width - width) / 2)
               columns: 3
               rowSpacing: Style.space(14)
               columnSpacing: Style.space(18)
@@ -620,24 +751,83 @@ Panel {
               Repeater {
                 model: 12
 
-                MonthGrid {
-                  id: yearMonthGrid
+                Column {
+                  id: yearBlock
                   required property int index
-                  year: root.viewYear
-                  month: index
-                  weekStart: root.weekStart
-                  todayKey: root.todayKey
-                  eventDayKeys: root.eventDayKeys
-                  journalDayKeys: root.journalDayKeys
-                  compact: true
-                  foreground: root.foreground
-                  accent: root.accent
-                  fontFamily: root.fontFamily
+                  spacing: Style.space(3)
 
-                  Connections {
-                    target: yearMonthGrid
-                    function onDayClicked(dateKeyValue) { root.openDay(dateKeyValue) }
-                    function onMonthLabelClicked() { root.viewMonth = yearMonthGrid.index; root.setView("month") }
+                  Text {
+                    textFormat: Text.PlainText
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Model.monthName(yearBlock.index).toUpperCase()
+                    color: Qt.darker(root.foreground, 1.2)
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    font.letterSpacing: 1
+                    font.bold: true
+
+                    MouseArea {
+                      anchors.fill: parent
+                      anchors.margins: -Style.space(4)
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: { root.viewMonth = yearBlock.index; root.setView("month") }
+                    }
+                  }
+
+                  Repeater {
+                    model: Model.monthGrid(root.viewYear, yearBlock.index, root.weekStart, root.todayKey)
+
+                    Row {
+                      required property var modelData
+                      spacing: 1
+
+                      Repeater {
+                        model: modelData.days
+
+                        Rectangle {
+                          id: yearBlockCell
+                          required property var modelData
+                          readonly property bool hasEvent: root.eventDayKeys[modelData.key] === true
+                          readonly property bool hasJournal: root.journalDayKeys[modelData.key] === true
+
+                          width: Style.space(20)
+                          height: Style.space(18)
+                          radius: Style.cornerRadius
+                          color: yearBlockDayMouse.containsMouse ? Style.hoverFillFor(root.foreground, root.accent) : "transparent"
+                          border.width: modelData.today ? Style.spacing.hairline : 0
+                          border.color: Style.normalBorderFor(root.foreground, root.accent)
+
+                          Text {
+                            textFormat: Text.PlainText
+                            anchors.centerIn: parent
+                            text: yearBlockCell.modelData.day
+                            color: yearBlockCell.modelData.inMonth
+                              ? (yearBlockCell.modelData.weekend ? Qt.darker(root.foreground, 1.45) : root.foreground)
+                              : Qt.darker(root.foreground, 2.2)
+                            font.family: root.fontFamily
+                            font.pixelSize: Style.font.caption
+                            font.bold: yearBlockCell.modelData.today
+                          }
+
+                          Rectangle {
+                            visible: yearBlockCell.hasEvent || yearBlockCell.hasJournal
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: Style.space(1)
+                            width: Style.space(3); height: Style.space(3); radius: width / 2
+                            color: yearBlockCell.hasEvent ? root.accent : Qt.darker(root.foreground, 1.4)
+                          }
+
+                          MouseArea {
+                            id: yearBlockDayMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openDay(yearBlockCell.modelData.key)
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
