@@ -22,9 +22,37 @@ BarWidget {
   readonly property var todaysEvents: service ? Model.eventsOnDay(service.windowEvents, todayKey) : []
   readonly property string nextEvent: showNextEvent && service ? Model.nextEventLabel(todaysEvents, Date.now()) : ""
 
-  readonly property string dateText: Qt.formatDate(today, "ddd d MMM")
+  // ---- Label format. Right-click walks a ring of date/date+time/time
+  // layouts, the same way omarchy.clock's own bar label does, and writes
+  // the result back to shell.json so it's what's shown from then on.
+  readonly property string configuredFormat: vertical
+    ? setting("verticalFormat", "ddd\n—\nd")
+    : setting("format", "ddd d MMM")
+  readonly property string configuredAltFormat: vertical
+    ? setting("verticalFormatAlt", "HH\n—\nmm")
+    : setting("formatAlt", "dddd, MMMM d")
+  readonly property var formatRing: Model.dateFormatRing(configuredFormat, configuredAltFormat, Model.barDateFormats(vertical))
+  readonly property string activeFormat: configuredFormat
+
+  function cycleFormat() {
+    var current = String(configuredFormat)
+    var next = Model.nextDateFormat(formatRing, current)
+    if (next === "" || next === current) return
+
+    var entry = { id: root.moduleName }
+    for (var key in root.settings) if (key !== "id") entry[key] = root.settings[key]
+    entry[vertical ? "verticalFormat" : "format"] = next
+
+    // Applied locally first so the label changes on the click itself; the
+    // shell.json write comes back through the bar as the same value.
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
+  readonly property string dateText: Qt.formatDateTime(today, activeFormat)
   readonly property string displayText: nextEvent !== "" ? nextEvent : dateText
-  readonly property var verticalLines: [Qt.formatDate(today, "ddd"), Qt.formatDate(today, "d")]
+  readonly property var verticalLines: dateText.split("\n")
 
   function refresh() {
     today = new Date()
@@ -107,7 +135,8 @@ BarWidget {
     tooltipText: root.nextEvent !== "" ? "HEY Calendar · " + root.nextEvent : "HEY Calendar"
 
     onPressed: function(b) {
-      if (b === Qt.MiddleButton) root.refresh()
+      if (b === Qt.RightButton) root.cycleFormat()
+      else if (b === Qt.MiddleButton) root.refresh()
       else root.togglePanel()
     }
 

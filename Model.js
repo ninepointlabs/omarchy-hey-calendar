@@ -143,6 +143,57 @@ function monthName(month) {
 }
 
 // ---------------------------------------------------------------------------
+// Bar label formats — right-click walks these in order, same idea as
+// omarchy.clock's own format ring, so the bar chip can show a date, a date
+// and time, just a time, or a different date layout depending on what was
+// last clicked to.
+// ---------------------------------------------------------------------------
+
+var BAR_DATE_FORMATS = [
+  "ddd d MMM",
+  "dddd, MMMM d",
+  "d MMM yyyy",
+  "MMM d",
+  "ddd d MMM HH:mm",
+  "ddd d MMM h:mm AP",
+  "HH:mm",
+  "h:mm AP"
+]
+
+var BAR_DATE_FORMATS_VERTICAL = [
+  "ddd\n—\nd",
+  "dd\nMMM",
+  "MMM\nd",
+  "d\nMMM\n''yy",
+  "HH\n—\nmm",
+  "h\n—\nmm\nAP"
+]
+
+function barDateFormats(vertical) {
+  return vertical ? BAR_DATE_FORMATS_VERTICAL.slice() : BAR_DATE_FORMATS.slice()
+}
+
+// The presets in a fixed order, plus the configured alternate and current
+// format when they are something else — mirrors omarchy.clock's own ring
+// builder so cycling never depends on which entry happens to be current.
+function dateFormatRing(configured, configuredAlt, presets) {
+  var ring = []
+  var candidates = (presets || []).concat([configuredAlt, configured])
+  for (var i = 0; i < candidates.length; i++) {
+    var format = String(candidates[i] === undefined || candidates[i] === null ? "" : candidates[i])
+    if (format === "" || ring.indexOf(format) !== -1) continue
+    ring.push(format)
+  }
+  return ring.length > 0 ? ring : ["ddd d MMM"]
+}
+
+function nextDateFormat(ring, current) {
+  if (!ring || ring.length === 0) return ""
+  var index = ring.indexOf(String(current === undefined || current === null ? "" : current))
+  return ring[(index + 1) % ring.length]
+}
+
+// ---------------------------------------------------------------------------
 // Bounded, hardened process invocation — adapted from 37signals.hey's
 // Model.js so `hey` is always run with output size caps, a timeout, and a
 // process-group kill on exit rather than inline in every Process element.
@@ -648,6 +699,7 @@ if (typeof module !== "undefined") {
     toggledWeekStart: toggledWeekStart, weekdayOrder: weekdayOrder, isoWeek: isoWeek,
     monthGrid: monthGrid, stepMonth: stepMonth, weekDays: weekDays, stepWeek: stepWeek,
     monthName: monthName,
+    barDateFormats: barDateFormats, dateFormatRing: dateFormatRing, nextDateFormat: nextDateFormat,
     boundedCaptureCommand: boundedCaptureCommand, shellQuote: shellQuote,
     cliResponseByteLimit: cliResponseByteLimit, cliErrorByteLimit: cliErrorByteLimit,
     probeResponseByteLimit: probeResponseByteLimit,
