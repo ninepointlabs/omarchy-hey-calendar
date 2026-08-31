@@ -28,8 +28,7 @@
     "defaultSection": "right",
     "defaults": {
       "view": "month",
-      "showNextEvent": true,
-      "weekStartDay": null
+      "showNextEvent": true
     },
     "schema": [
       {
