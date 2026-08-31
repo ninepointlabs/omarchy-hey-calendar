@@ -515,7 +515,7 @@ Item {
         width: parent.width
         visible: root.service && root.service.journalExists
         text: root.service ? root.service.journalContent : ""
-        textFormat: Text.MarkdownText
+        textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: root.foreground
         font.family: root.fontFamily

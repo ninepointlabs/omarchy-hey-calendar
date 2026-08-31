@@ -448,12 +448,25 @@ function localDateKeyFromIso(iso) {
   return keyForDate(parsed)
 }
 
+// HEY marks a date-only value (an all-day event, or any journal entry —
+// entries have no time-of-day at all) as literal UTC midnight, e.g.
+// "2026-08-31T00:00:00Z" for August 31st, regardless of the viewer's zone.
+// Converting that through a local Date the way localDateKeyFromIso does
+// shifts it a day earlier on any zone behind UTC (which is most of the
+// US) — the calendar date is the first 10 characters, read as-is, not a
+// timezone-relative instant.
+function dateOnlyKeyFromIso(iso) {
+  var match = String(iso || "").match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ""
+}
+
 function normalizeEvent(value) {
   var raw = value && typeof value === "object" ? value : {}
   var id = raw.id
   if (id === undefined || id === null) return null
   var startsAt = boundedString(raw.starts_at || "", 64)
   var endsAt = boundedString(raw.ends_at || "", 64)
+  var allDay = raw.all_day === true
   var calendar = raw.calendar && typeof raw.calendar === "object" ? raw.calendar : {}
   return {
     id: String(id),
@@ -462,9 +475,9 @@ function normalizeEvent(value) {
     location: cleanText(raw.location || "", remoteNameCharacterLimit),
     startsAt: startsAt,
     endsAt: endsAt,
-    startsDateKey: localDateKeyFromIso(startsAt),
-    endsDateKey: localDateKeyFromIso(endsAt || startsAt),
-    allDay: raw.all_day === true,
+    startsDateKey: allDay ? dateOnlyKeyFromIso(startsAt) : localDateKeyFromIso(startsAt),
+    endsDateKey: allDay ? dateOnlyKeyFromIso(endsAt || startsAt) : localDateKeyFromIso(endsAt || startsAt),
+    allDay: allDay,
     recurring: raw.recurring === true,
     calendarId: calendar.id !== undefined && calendar.id !== null ? String(calendar.id) : "",
     calendarName: cleanText(calendar.name || "", remoteNameCharacterLimit),
@@ -488,8 +501,9 @@ function parseEvents(raw) {
   return { ok: true, error: "", events: events }
 }
 
-// hey journal list returns entries with (at minimum) a `date`; used only to
-// know which days have an entry, for pip dots — not to read the content.
+// hey journal list's entries key their day off `starts_at` (an ISO instant,
+// same as events), not a bare `date`/`day` field — used only to know which
+// days have an entry, for pip dots, not to read the content.
 function parseJournalDays(raw) {
   var result = parseJson(raw)
   if (!result.ok) return { ok: false, error: result.error, days: {} }
@@ -497,25 +511,59 @@ function parseJournalDays(raw) {
   var days = {}
   for (var i = 0; i < data.length && i < 2000; i++) {
     var entry = data[i] || {}
-    var key = boundedString(entry.date || entry.day || "", 10)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) days[key] = true
+    var key = dateOnlyKeyFromIso(entry.starts_at || entry.date || entry.day || "")
+    if (key !== "") days[key] = true
   }
   return { ok: true, error: "", days: days }
+}
+
+function decodeTextEntity(entity) {
+  switch (String(entity || "").toLowerCase()) {
+    case "&nbsp;": return " "
+    case "&amp;": return "&"
+    case "&lt;": return "<"
+    case "&gt;": return ">"
+    case "&#39;":
+    case "&apos;": return "'"
+    case "&quot;": return "\""
+    default: return ""
+  }
+}
+
+// HEY stores journal entries as HTML from its web Trix editor — even the
+// `--json` read returns `data.content` as HTML (`<div class="trix-content">
+// ...</div>`), never Markdown, whatever the CLI's write side accepts on the
+// way in. Flattened to plain text here so the panel never shows raw markup:
+// block-level closes become paragraph breaks, <br> becomes a line break,
+// everything else is stripped, and entities are decoded.
+function htmlToPlainText(html) {
+  var text = boundedString(html, remoteExcerptCharacterLimit * 4)
+  text = text.replace(/<br\s*\/?>/gi, "\n")
+  text = text.replace(/<\/(div|p|li)>/gi, "\n\n")
+  text = text.replace(/<[^>]+>/g, "")
+  text = text.replace(/&(?:nbsp|amp|lt|gt|#39|apos|quot);/gi, decodeTextEntity)
+  text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n")
+  return text.trim()
 }
 
 // hey journal read answers `{ok:true, summary:"No journal entry for DATE"}`
 // with no `data` when the day is empty, and otherwise carries the entry
 // under `data` — as a string, or an object with a content/markdown field
-// depending on CLI version. Both shapes are handled defensively.
+// depending on CLI version. Both shapes are handled defensively, and any
+// HTML content is flattened to plain text (see htmlToPlainText).
 function parseJournalEntry(raw) {
   var result = parseJson(raw)
   if (!result.ok) return { ok: false, error: result.error, exists: false, content: "" }
   var data = result.value.data
   if (data === undefined || data === null) return { ok: true, error: "", exists: false, content: "" }
-  if (typeof data === "string") return { ok: true, error: "", exists: data.trim() !== "", content: data }
+  if (typeof data === "string") {
+    var plainString = htmlToPlainText(data)
+    return { ok: true, error: "", exists: plainString !== "", content: plainString }
+  }
   if (typeof data === "object") {
     var content = data.content || data.markdown || data.body || data.text || ""
-    return { ok: true, error: "", exists: String(content).trim() !== "", content: String(content) }
+    var plain = htmlToPlainText(String(content))
+    return { ok: true, error: "", exists: plain !== "", content: plain }
   }
   return { ok: true, error: "", exists: false, content: "" }
 }
@@ -615,6 +663,7 @@ if (typeof module !== "undefined") {
     journalEditLaunchCommand: journalEditLaunchCommand,
     parseCalendars: parseCalendars, calendarColorIndex: calendarColorIndex,
     parseEvents: parseEvents, parseJournalDays: parseJournalDays, parseJournalEntry: parseJournalEntry,
+    htmlToPlainText: htmlToPlainText, dateOnlyKeyFromIso: dateOnlyKeyFromIso,
     eventsByDay: eventsByDay, eventsOnDay: eventsOnDay,
     eventTimeLabel: eventTimeLabel, eventTimeRangeLabel: eventTimeRangeLabel,
     nextEventLabel: nextEventLabel, validTimeOfDay: validTimeOfDay
