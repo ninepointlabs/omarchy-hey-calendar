@@ -589,6 +589,7 @@ Panel {
 
             // ---- Month: one grid
             MonthGrid {
+              id: monthViewGrid
               visible: !root.needsSetup && root.currentView === "month"
               anchors.horizontalCenter: parent.horizontalCenter
               year: root.viewYear
@@ -600,8 +601,12 @@ Panel {
               foreground: root.foreground
               accent: root.accent
               fontFamily: root.fontFamily
-              onDayClicked: function(dateKeyValue) { root.openDay(dateKeyValue) }
-              onMonthLabelClicked: root.goToToday()
+            }
+
+            Connections {
+              target: monthViewGrid
+              function onDayClicked(dateKeyValue) { root.openDay(dateKeyValue) }
+              function onMonthLabelClicked() { root.goToToday() }
             }
 
             // ---- Year: twelve compact grids
@@ -616,6 +621,7 @@ Panel {
                 model: 12
 
                 MonthGrid {
+                  id: yearMonthGrid
                   required property int index
                   year: root.viewYear
                   month: index
@@ -627,8 +633,12 @@ Panel {
                   foreground: root.foreground
                   accent: root.accent
                   fontFamily: root.fontFamily
-                  onDayClicked: function(dateKeyValue) { root.openDay(dateKeyValue) }
-                  onMonthLabelClicked: { root.viewMonth = index; root.setView("month") }
+
+                  Connections {
+                    target: yearMonthGrid
+                    function onDayClicked(dateKeyValue) { root.openDay(dateKeyValue) }
+                    function onMonthLabelClicked() { root.viewMonth = yearMonthGrid.index; root.setView("month") }
+                  }
                 }
               }
             }
