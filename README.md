@@ -7,6 +7,17 @@ Built to match the look, spacing, and interaction feel of Omarchy's own
 `omarchy.clock` widget and the official `37signals.hey` plugin, so it feels
 like a stock part of the shell rather than a bolted-on extra.
 
+<table>
+<tr>
+<td width="50%"><img src="preview.png" alt="Today view: events and journal entry for the day"></td>
+<td width="50%"><img src="preview1.png" alt="Week view: seven days at a glance"></td>
+</tr>
+<tr>
+<td width="50%"><img src="preview2.png" alt="Month view: grid with activity dots"></td>
+<td width="50%"><img src="preview3.png" alt="Year view: all twelve months at once"></td>
+</tr>
+</table>
+
 ## What it does
 
 - **Bar chip** — shows today's date, or your next upcoming event when one's
