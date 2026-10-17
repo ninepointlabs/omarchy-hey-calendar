@@ -34,7 +34,9 @@ test("license summary and text come from LICENSE", () => {
 test("no 'Ninepoint' spelling left in the repo", () => {
   const files = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" }).split("\n")
     .filter((f) => f && !/\.png$/.test(f))
-  for (const f of files) assert.ok(!/ninepoint labs/i.test(read(f)), f)
+  // Built from parts so this file doesn't match itself.
+  const oldSpelling = new RegExp("ninepoint" + " labs", "i")
+  for (const f of files) assert.ok(!oldSpelling.test(read(f)), f)
 })
 
 test("facts: Nine Point Labs, created date, support address", () => {
