@@ -22,6 +22,7 @@ Item {
   property bool installed: true
   property bool authenticated: true
   property bool cliOutdated: false
+  property string cliVersion: "" // `hey --version`, for the About page
   property bool probed: false
   property bool probeError: false
   property bool probing: false
@@ -111,6 +112,7 @@ Item {
     installed = true
 
     var probe = Model.parseProbe(text)
+    cliVersion = probe.version
     cliOutdated = Model.cliVersionTooOld(probe.version)
     if (cliOutdated) {
       lastError = Model.cliTooOldMessage

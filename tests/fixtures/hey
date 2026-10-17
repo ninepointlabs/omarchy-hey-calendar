@@ -1,0 +1,11 @@
+#!/bin/bash
+# Stand-in for the HEY CLI in tests/panel.test.sh: a signed-in account with no
+# calendars, events or journal entries. Logs each call to $HEY_STUB_LOG.
+[ -n "${HEY_STUB_LOG:-}" ] && printf '%s\n' "$*" >>"$HEY_STUB_LOG"
+case "$1 ${2:-}" in
+  "--version "*) echo "hey version 9.8.7" ;;
+  "auth status") echo '{"ok":true,"data":{"authenticated":true}}' ;;
+  "journal read") echo '{"ok":true,"summary":"No journal entry"}' ;;
+  "calendar list"|"event list"|"journal list") echo '{"ok":true,"data":[]}' ;;
+  *) echo '{"ok":false,"error":"not available in tests"}'; exit 1 ;;
+esac

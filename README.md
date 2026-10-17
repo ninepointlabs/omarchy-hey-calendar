@@ -44,6 +44,13 @@ like a stock part of the shell rather than a bolted-on extra.
 - **Setup built in** — if the HEY CLI isn't installed or isn't signed in, the
   panel shows the same one-click install/sign-in flow as the official HEY
   email plugin, instead of just failing quietly.
+- **About** — the 󰋽 button next to the panel's title (or <kbd>i</kbd> while
+  the panel is open, or `omarchy-shell ninepointlabs.hey-calendar about`)
+  shows the version, license (readable in place, with the third-party
+  notices), Nine Point Labs, what the plugin does with your data, and the
+  support address, [help@ninepointlabs.com](mailto:help@ninepointlabs.com),
+  with *Email* and *Copy* buttons and *Copy version details*. <kbd>Esc</kbd>
+  or *Back* returns to the calendar.
 
 ## Requirements
 
@@ -169,7 +176,8 @@ With the panel open:
 | Arrow keys | Step the current view (previous/next month, week, or year) |
 | `t` | Jump back to today |
 | `r` | Refresh |
-| `Esc` | Close the day detail, then the panel |
+| `i` | Show / hide About |
+| `Esc` | Close the day detail or About, then the panel |
 | `Tab` / `Shift+Tab` | Switch to the next/previous bar panel |
 
 ## Under the hood
@@ -208,6 +216,13 @@ For anyone extending this plugin:
 
 See `THIRD_PARTY_NOTICES.md` for the specific code adapted from Omarchy's
 built-in clock plugin and from `37signals.hey`.
+
+## Tests
+
+```bash
+node --test tests/          # About page facts, checked against manifest.json, LICENSE and the first commit
+tests/panel.test.sh         # About page in a real Quickshell, with a stub `hey` (Wayland session)
+```
 
 ## Known limitations
 

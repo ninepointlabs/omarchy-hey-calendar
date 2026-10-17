@@ -114,6 +114,8 @@ BarWidget {
     function show(): void { root.open() }
     function hide(): void { root.close() }
     function toggle(): void { root.togglePanel() }
+    // The panel's About page: version, license, support, privacy.
+    function about(): void { if (panelLoader.item) panelLoader.item.openAbout() }
     // Called back by the floating terminal's `hey journal write` handoff
     // once $EDITOR closes, so the open day's entry refreshes immediately.
     function journalEditFinished(): string {
