@@ -3,7 +3,7 @@
   "id": "ninepointlabs.hey-calendar",
   "name": "HEY Calendar",
   "version": "0.1.0",
-  "author": "Ninepoint Labs",
+  "author": "Nine Point Labs",
   "license": "MIT",
   "description": "Native Omarchy calendar — Today, Week, Month and Year views, day detail with events and journal — backed by the HEY CLI.",
   "kinds": [

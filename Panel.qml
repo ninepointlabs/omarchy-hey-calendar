@@ -32,6 +32,8 @@ Panel {
   property date weekAnchor: today
 
   property bool dayDetailOpen: false
+  // The About page replaces the calendar inside the same panel.
+  property bool showAbout: false
   property string dayDetailKey: ""
   readonly property date dayDetailDate: dayDetailKey !== "" ? (Model.dateFromKey(dayDetailKey) || today) : today
 
@@ -145,6 +147,18 @@ Panel {
     Qt.callLater(function() { if (dayDetailFlick) dayDetailFlick.contentY = 0 })
   }
 
+  function setAbout(on) {
+    showAbout = !!on
+    if (showAbout) dayDetailOpen = false
+    if (aboutFlick) aboutFlick.contentY = 0
+    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
+  function openAbout() {
+    setAbout(true)
+    if (!opened) open()
+  }
+
   function closeDayDetail() {
     dayDetailOpen = false
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -195,6 +209,7 @@ Panel {
   onOpenedChanged: {
     if (!opened) {
       dayDetailOpen = false
+      showAbout = false
       // Reset navigation to today on close, not just on an explicit "Today"
       // click — otherwise the bar widget's "next event" label would keep
       // reading whatever month/week/year was last browsed to, since it and
@@ -246,7 +261,9 @@ Panel {
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(620))
     contentHeight: panel.fittedContentHeight(
-      root.dayDetailOpen
+      root.showAbout
+        ? aboutView.implicitHeight + Style.space(24)
+        : root.dayDetailOpen
         ? dayDetailInner.implicitHeight + Style.space(24)
         : fixedContent.implicitHeight + mainColumn.implicitHeight + Style.space(24),
       Style.space(640))
@@ -256,15 +273,19 @@ Panel {
       anchors.fill: parent
       blocked: root.dayDetailOpen
       onMoveRequested: function(dx, dy) {
+        if (root.showAbout) return
         if (root.currentView === "month") { if (dx !== 0) root.moveMonth(dx); if (dy !== 0) root.moveYear(dy) }
         else if (root.currentView === "week" && dx !== 0) root.moveWeek(dx)
         else if (root.currentView === "year" && dy !== 0) root.moveYear(dy)
       }
-      onActivateRequested: root.goToToday()
-      onCloseRequested: root.close()
+      onActivateRequested: if (!root.showAbout) root.goToToday()
+      // Esc steps back out of About before it closes the panel.
+      onCloseRequested: root.showAbout ? root.setAbout(false) : root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(t) {
-        if (t === "t" || t === "T") root.goToToday()
+        if (t === "i" || t === "I") root.setAbout(!root.showAbout)
+        else if (root.showAbout) return
+        else if (t === "t" || t === "T") root.goToToday()
         else if (t === "r" || t === "R") root.refresh()
         else if (t === "1") root.setView("today")
         else if (t === "2") root.setView("week")
@@ -276,7 +297,7 @@ Panel {
       ColumnLayout {
         id: content
         anchors.fill: parent
-        visible: !root.dayDetailOpen
+        visible: !root.dayDetailOpen && !root.showAbout
         spacing: Style.space(12)
 
         Column {
@@ -291,7 +312,7 @@ Panel {
             Column {
               id: titleColumn
               anchors.left: parent.left
-              anchors.right: refreshButton.left
+              anchors.right: aboutButton.left
               anchors.rightMargin: Style.space(8)
               spacing: Style.space(2)
 
@@ -313,6 +334,19 @@ Panel {
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
+            }
+
+            PanelActionButton {
+              id: aboutButton
+              objectName: "aboutButton"
+              anchors.right: refreshButton.left
+              anchors.rightMargin: Style.space(4)
+              anchors.verticalCenter: parent.verticalCenter
+              iconText: "󰋽"
+              tooltipText: "About HEY Calendar (i)"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.setAbout(true)
             }
 
             PanelActionButton {
@@ -839,6 +873,27 @@ Panel {
               }
             }
           }
+        }
+      }
+
+      // ------------------------------------------------------------- About --
+      Flickable {
+        id: aboutFlick
+        anchors.fill: parent
+        visible: root.showAbout
+        contentWidth: width
+        contentHeight: aboutView.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+        AboutView {
+          id: aboutView
+          width: aboutFlick.width
+          visible: root.showAbout
+          host: root
+          onBackRequested: root.setAbout(false)
         }
       }
 
